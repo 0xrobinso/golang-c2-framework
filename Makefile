@@ -38,6 +38,15 @@ build-all:
 	
 	@echo "✅ Cross-platform builds complete"
 
+# Generate standalone agents
+agents:
+	@echo "🔨 Building standalone agents..."
+	mkdir -p agents/
+	GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o agents/agent-windows.exe ./cmd/client
+	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o agents/agent-linux ./cmd/client
+	GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o agents/agent-macos ./cmd/client
+	@echo "✅ Standalone agents built in agents/ directory"
+
 # Generate TLS certificates
 certs:
 	@echo "🔐 Generating TLS certificates..."
@@ -47,14 +56,15 @@ certs:
 # Clean build artifacts
 clean:
 	@echo "🧹 Cleaning build artifacts..."
-	rm -rf bin/
+	rm -rf bin/ agents/
 	rm -f server.crt server.key
+	rm -f temp_agent.go
 	@echo "✅ Clean complete"
 
 # Create directory structure
 setup:
 	@echo "📁 Setting up project structure..."
-	mkdir -p cmd/server cmd/client internal/common internal/server internal/client bin
+	mkdir -p cmd/server cmd/client internal/common internal/server internal/client bin agents
 	@echo "✅ Project structure created"
 
 # Run server
@@ -76,6 +86,7 @@ help:
 	@echo "  server     - Build server binary only"
 	@echo "  client     - Build client binary only"
 	@echo "  build-all  - Build for multiple platforms"
+	@echo "  agents     - Build standalone agents for all platforms"
 	@echo "  certs      - Generate TLS certificates"
 	@echo "  setup      - Create project directory structure"
 	@echo "  clean      - Remove build artifacts"

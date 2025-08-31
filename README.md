@@ -1,3 +1,4 @@
+
 # C2 Framework
 
 A simple Command and Control (C2) framework written in Go for educational and portfolio purposes.

