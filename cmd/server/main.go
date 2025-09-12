@@ -44,7 +44,7 @@ func showHelp() {
 
 func checkTLSCertificates() {
 	if _, err := os.Stat("server.crt"); os.IsNotExist(err) {
-		fmt.Println("⚠️  TLS certificates not found!")
+		fmt.Println("TLS certificates not found!")
 		fmt.Println("To generate self-signed certificates, run:")
 		fmt.Println("openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes -subj '/CN=localhost'")
 		fmt.Println()

