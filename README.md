@@ -106,33 +106,27 @@ c2-framework/
 ### Starting the Server
 ```bash
 $ ./bin/c2-server
-╔══════════════════════════════════════╗
-║           C2 Framework v1.0          ║
-║         Command & Control            ║
-╚══════════════════════════════════════╝
-🔒 C2 Server started on port 8443 (TLS Encrypted)
+C2 Framework v1.0 - Command & Control
+C2 Server started on port 8443 (TLS Encrypted)
 
 C2> list
-📭 No clients connected
+No clients connected
 
 C2> 
-✅ New client connected: workstation_1693123456 (john@workstation)
+New client connected: workstation_1693123456 (john@workstation)
 
 C2> list
-👥 Connected Clients (1):
-┌─────────────────┬──────────────┬─────────────┬──────────────┬─────────────┐
-│ Client ID       │ OS/Arch      │ Hostname    │ User         │ Last Seen   │
-├─────────────────┼──────────────┼─────────────┼──────────────┼─────────────┤
-│ workstation_... │ linux/amd64  │ workstation │ john         │ 2s          │
-└─────────────────┴──────────────┴─────────────┴──────────────┴─────────────┘
+Connected Clients (1):
+Client ID           OS/Arch      Hostname    User    Last Seen
+workstation_...     linux/amd64  workstation john    2s
 
 C2> select workstation_1693123456
-🎯 Selected client: workstation_1693123456 (workstation)
+Selected client: workstation_1693123456 (workstation)
 Type 'back' to return to main menu
 
 workstation> sysinfo
-[workstation_1693123456] 📤 Result:
-💻 System Information:
+[workstation_1693123456] Result:
+System Information:
 OS: linux
 Architecture: amd64
 Hostname: workstation
@@ -140,11 +134,12 @@ User: john
 Go Version: go1.21.0
 
 workstation> pwd
-[workstation_1693123456] 📤 Result:
-📁 Current directory: /home/john
+[workstation_1693123456] Result:
+Current directory: /home/john
 
 workstation> back
 C2> 
+
 ```
 
 ## Development
